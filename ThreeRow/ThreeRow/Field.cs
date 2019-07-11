@@ -17,11 +17,10 @@ namespace ThreeRow.ThreeRow
 
         private bool _fillTask = false;
         private List<List<Cell>> _cells;
-        private Cell _moving1;
-        private Cell _moving2;
         private static int _cellWidth, _cellHeight;
         private Cell _selectedCell;
         private List<Cell> _cellsToDestroy = new List<Cell>();
+        private List<Cell> _lastMoved = new List<Cell>();
 
         public Field(Background bg)
         {
@@ -84,6 +83,7 @@ namespace ThreeRow.ThreeRow
                         {
                             Vector3 position = new Vector3(i * (CELL_OFFSET + _cellWidth) + CELL_OFFSET, CELL_OFFSET, 1);
                             _cells[0][i] = new Cell(this, new int[2] { 0, i }, position, _cellWidth, _cellHeight);
+                            _lastMoved.Add(_cells[0][i]);
                         }
                     }
                     await DropCells();
@@ -119,6 +119,7 @@ namespace ThreeRow.ThreeRow
             _cellsToDestroy.Clear();
             CheckRows();
             CheckCols();
+            _lastMoved.Clear();
             isSolved = _cellsToDestroy.Count > 0;
             DestroySolved();
             return isSolved;
@@ -145,11 +146,11 @@ namespace ThreeRow.ThreeRow
                             {
                                 if (cellsSameType.Count == 4)
                                 {
-                                    AddBonusLineHor(cellsSameType, _moving1, _moving2);
+                                    AddBonusLineHor(cellsSameType);
                                 }
                                 if (cellsSameType.Count >= 5)
                                 {
-                                    AddBonusLineBomb(cellsSameType, _moving1, _moving2);
+                                    AddBonusLineBomb(cellsSameType);
                                 }
                                 _cellsToDestroy.AddRange(cellsSameType);
                             }
@@ -167,11 +168,11 @@ namespace ThreeRow.ThreeRow
                 {
                     if (cellsSameType.Count == 4)
                     {
-                        AddBonusLineHor(cellsSameType, _moving1, _moving2);
+                        AddBonusLineHor(cellsSameType);
                     }
                     if (cellsSameType.Count >= 5)
                     {
-                        AddBonusLineBomb(cellsSameType, _moving1, _moving2);
+                        AddBonusLineBomb(cellsSameType);
                     }
                     _cellsToDestroy.AddRange(cellsSameType);
                 }
@@ -199,11 +200,11 @@ namespace ThreeRow.ThreeRow
                             {
                                 if (cellsSameType.Count == 4)
                                 {
-                                    AddBonusLineVert(cellsSameType, _moving1, _moving2);
+                                    AddBonusLineVert(cellsSameType);
                                 }
                                 if (cellsSameType.Count >= 5)
                                 {
-                                    AddBonusLineBomb(cellsSameType, _moving1, _moving2);
+                                    AddBonusLineBomb(cellsSameType);
                                 }
                                 _cellsToDestroy.AddRange(cellsSameType);
                             }
@@ -222,46 +223,55 @@ namespace ThreeRow.ThreeRow
                 {
                     if (cellsSameType.Count == 4)
                     {
-                        AddBonusLineVert(cellsSameType, _moving1, _moving2);
+                        AddBonusLineVert(cellsSameType);
                     }
                     if (cellsSameType.Count >= 5)
                     {
-                        AddBonusLineBomb(cellsSameType, _moving1, _moving2);
+                        AddBonusLineBomb(cellsSameType);
                     }
                     _cellsToDestroy.AddRange(cellsSameType);
                 }
             }
         }
 
-        private void AddBonusLineHor(List<Cell> cellList, Cell lft, Cell rgt)
+        private void AddBonusLineHor(List<Cell> cellList)
         {
             foreach (Cell c in cellList)
             {
-                if (c == lft || c == rgt)
+                foreach (Cell lc in _lastMoved)
                 {
-                    c.leaveBonus = Cell.BonusTypes.LHOR;
+                    if (lc == c)
+                    {
+                        c.leaveBonus = Cell.BonusTypes.LHOR;
+                    }
                 }
             }
         }
 
-        private void AddBonusLineVert(List<Cell> cellList, Cell lft, Cell rgt)
+        private void AddBonusLineVert(List<Cell> cellList)
         {
             foreach (Cell c in cellList)
             {
-                if (c == lft || c == rgt)
+                foreach (Cell lc in _lastMoved)
                 {
-                    c.leaveBonus = Cell.BonusTypes.LVERT;
+                    if (lc == c)
+                    {
+                        c.leaveBonus = Cell.BonusTypes.LVERT;
+                    }
                 }
             }
         }
 
-        private void AddBonusLineBomb(List<Cell> cellList, Cell lft, Cell rgt)
+        private void AddBonusLineBomb(List<Cell> cellList)
         {
             foreach (Cell c in cellList)
             {
-                if (c == lft || c == rgt)
+                foreach (Cell lc in _lastMoved)
                 {
-                    c.leaveBonus = Cell.BonusTypes.BOMB;
+                    if (lc == c)
+                    {
+                        c.leaveBonus = Cell.BonusTypes.BOMB;
+                    }
                 }
             }
         }
@@ -278,6 +288,7 @@ namespace ThreeRow.ThreeRow
                         _cells[j + 1][i] = _cells[j][i];
                         _cells[j][i] = null;
                         cellsToDrop.Add(_cells[j + 1][i].SetPos(new int[2] { j + 1, i }));
+                        _lastMoved.Add(_cells[j + 1][i]);
                     }
                 }
             }
@@ -325,11 +336,9 @@ namespace ThreeRow.ThreeRow
                         if (IsPossibleMove(pos1, pos2))
                         {
                             await SwapCells(cell, selCell);
-                            _moving1 = cell;
-                            _moving2 = selCell;
+                            _lastMoved.Add(cell);
+                            _lastMoved.Add(selCell);
                             bool isSolved = Solve();
-                            _moving1 = null;
-                            _moving2 = null;
                             if (!isSolved)
                             {
                                 await Task.Delay(REVERT_DELAY);
